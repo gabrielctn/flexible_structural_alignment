@@ -20,8 +20,10 @@ from datetime import datetime
 from docopt import docopt
 from schema import Schema, And, Use, SchemaError
 import subprocess
-import os
-import re
+import os, re
+
+# Local modules
+import src.parse as parse
 
 
 def check_args():
@@ -59,6 +61,8 @@ if __name__ == "__main__":
     # Check the types and ranges of the command line arguments parsed by docopt
     check_args()
 
+    ### Definition of filenames and paths
+    ##################
     PDB_FILE_1 = ARGUMENTS["PDB_FILE_1"]
     PDB_FILE_2 = ARGUMENTS["PDB_FILE_2"]
     PDB_NAME_1 = os.path.splitext(os.path.basename(PDB_FILE_1))[0]
@@ -69,22 +73,11 @@ if __name__ == "__main__":
     ### Launch TMalign
     ##################
     tm_align_res = subprocess.Popen(["./bin/TMalign", PDB_FILE_1, PDB_FILE_2],
-                     stdout=subprocess.PIPE).communicate()[0].decode("UTF-8").split("\n")
+                                    stdout=subprocess.PIPE).communicate()[0].decode("UTF-8").split("\n")
 
-    # for line in tm_align_res.split("\n"):
-    #     print(line)
-
-    tm_score_regex = re.compile("^TM-score= (\\d+\\.\\d+).*$")
-    aligned_len_regex = re.compile("^Aligned length=\\s*(\\d+).*$")
-
-    for line in tm_align_res:
-        a = re.search(tm_score_regex, line)
-        b = re.search(aligned_len_regex, line)
-        if a:
-            tm_score = float(a.group(1))
-        if b:
-            aligned_len = int(b.group(1))
-    print(tm_score, aligned_len)
+    ### Parse TMalign
+    #################
+    tm_score1, tm_score2, rmsd, aligned_len = parse.parse_tm_align(tm_align_res)
 
     ### Parse PDB
     #############
@@ -97,19 +90,23 @@ if __name__ == "__main__":
 
     ### Launch Peeling
     ##################
-    results = subprocess.Popen(["./bin/peeling11_4.1", "-pdb", PDB_FILE_1, "-dssp", DSSP_FILE_1, "-R2", "98",
-                      "-ss2", "8", "-lspu", "20", "-mspu", "0", "-d0", "6.0", "-delta", "1.5", "-oss", "0",
-                      "-p", "0", "-cp", "0", "-npu", "16"], stdout=subprocess.PIPE).communicate()[0].decode("UTF-8")
-    #print(results)
+    peeling_res = subprocess.Popen(["./bin/peeling11_4.1", "-pdb", PDB_FILE_1, "-dssp", DSSP_FILE_1,
+                                    "-R2", "98", "-ss2", "8", "-lspu", "20", "-mspu", "0", "-d0",
+                                    "6.0", "-delta", "1.5", "-oss", "0", "-p", "0", "-cp", "0",
+                                    "-npu", "16"],
+                                   stdout=subprocess.PIPE).communicate()[0].decode("UTF-8").split("\n")
+    clean_peeling_outputs()
+    for i in peeling_res:
+        print(i)
 
+    ### Parse Peeling
+    #################
+    peeling_dict = parse.parse_protein_peeling(peeling_res)
 
-
-
-
-
-
-
-
-
+    # Write all PU in different PDB files
+    for i, iter in enumerate(peeling_dict["PU_bounds"]):
+        for j, (start, end) in enumerate(iter):
+            out_file = "results/" + PDB_NAME_1 + "_" + str(i+1) + "_pu_" + str(j+1) + ".pdb"
+            parse.write_pdb_portion(structure, "A", int(start), int(end), out_file)
 
     print("\nTotal runtime: {} seconds".format(str(datetime.now() - START_TIME)))
