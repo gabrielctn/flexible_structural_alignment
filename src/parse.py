@@ -4,6 +4,7 @@
 """
 
 # Third-party modules
+import sys
 import re
 from Bio.PDB import Dice
 
@@ -60,7 +61,7 @@ def parse_protein_peeling(peeling_res):
     Returns:
         dictionary: Number of
     """
-    peeling_dict = {"NB_PU": [], "PU_bounds": []}
+    peeling_dict = {"NB_PU": [], "PU_BOUNDS": []}
     res_line_regex = re.compile("^[^#].*$")
     for line in peeling_res:
         # Looking for lines not starting with "#"
@@ -68,7 +69,8 @@ def parse_protein_peeling(peeling_res):
         if res_line_found:
             res_line = res_line_found.group(0).split()
             peeling_dict["NB_PU"].append(int(res_line[4]))
-            peeling_dict["PU_bounds"].append([(x, y) for x, y in zip(res_line[5::2], res_line[6::2])])
+            pu_bounds = [(x, y) for x, y in zip(res_line[5::2], res_line[6::2])]
+            peeling_dict["PU_BOUNDS"].append(pu_bounds)
     return peeling_dict
 
 
@@ -86,66 +88,66 @@ def write_pdb_portion(structure, chain_id, start, end, filename):
     Dice.extract(structure, chain_id, start, end, filename)
 
 
-def reindex_pdb_by_index(startindex=1, PDBtxt=''):
+def reindex_pdb_by_index(start_index=1, pdb_txt=''):
     '''
     reindex residue number of PDB format text
 
     options:
-        startindex - index of first residue
-        PDBtxt     - text of input PDB to be reindexed
+        start_index - index of first residue
+        pdb_txt     - text of input PDB to be reindexed
     '''
-    PDBtxt_reindex = ''
+    pdb_txt_reindex = ''
     current_old_index = ''  # residue number in origin PDB
-    warn_chainID = ''  # warning about new chain ID
+    warn_chain_id = ''  # warning about new chain ID
 
-    for line in PDBtxt.splitlines():
+    for line in pdb_txt.splitlines():
         if len(line) < 27 or (not line.startswith("ATOM  ")
                               and not line.startswith("HETATM") and not line.startswith("TER")):
-            PDBtxt_reindex += line+'\n'
+            pdb_txt_reindex += line+'\n'
             continue
         elif not line[16] in ['A', ' ']:  # alternative location identifier
             continue
-        resSeq = line[22:27]  # residue sequence number
-        current_chainID = line[21]  # chain identifier
+        res_seq = line[22:27]  # residue sequence number
+        current_chain_id = line[21]  # chain identifier
 
         if not current_old_index:  # first residue encountered
-            current_old_index = resSeq  # residue number in origin PDB
-            current_new_index = int(startindex)
-            chainID = current_chainID
-            resSeq_new = str(current_new_index)
-            resSeq_new = ' '*(4-len(resSeq_new))+resSeq_new+' '
-        elif current_chainID != chainID:
-            if warn_chainID != current_chainID:
+            current_old_index = res_seq  # residue number in origin PDB
+            current_new_index = int(start_index)
+            chain_id = current_chain_id
+            res_seq_new = str(current_new_index)
+            res_seq_new = ' '*(4-len(res_seq_new))+res_seq_new+' '
+        elif current_chain_id != chain_id:
+            if warn_chain_id != current_chain_id:
                 sys.stderr.write(
-                    "Warning! Discarding chain '%s'\n" % current_chainID)
-                warn_chainID = current_chainID
+                    "Warning! Discarding chain '%s'\n" % current_chain_id)
+                warn_chain_id = current_chain_id
             continue
-        elif resSeq != current_old_index:
+        elif res_seq != current_old_index:
             current_new_index += 1
-            current_old_index = resSeq
-            resSeq_new = str(current_new_index)
-            resSeq_new = ' '*(4-len(resSeq_new))+resSeq_new+' '
-        PDBtxt_reindex += line[:16]+' '+line[17:22]+resSeq_new+line[27:]+'\n'
-    return PDBtxt_reindex
+            current_old_index = res_seq
+            res_seq_new = str(current_new_index)
+            res_seq_new = ' '*(4-len(res_seq_new))+res_seq_new+' '
+        pdb_txt_reindex += line[:16]+' '+line[17:22]+res_seq_new+line[27:]+'\n'
+    return pdb_txt_reindex
 
 
-def reindex_pdb(startindex, infile, clean=True):
+def reindex_pdb(start_index, infile, clean=True):
     '''parse PDB file "infile", reindex it according to start index or
-    sequence file "startindex", and return the text of renumbered PDB
+    sequence file "start_index", and return the text of renumbered PDB
     '''
-    fp = open(infile, 'rU')
-    PDBtxt = ''
-    for line in fp.read().splitlines():
+    f_in = open(infile, 'rU')
+    pdb_txt = ''
+    for line in f_in.read().splitlines():
         if line.startswith("END"):
             if clean:
                 line = line.replace("ENDMDL", "END   ")
-            PDBtxt += line+'\n'
+            pdb_txt += line+'\n'
             break
-        if line.startswith("ATOM  ") or line.startswith("TER") or (
-            clean == False and not line[:6] in ["DBREF ", "SEQADV", "MODRES",
-                                                "HELIX ", "SHEET ", "SSBOND", "SITE  "]):
-            PDBtxt += line+'\n'
-    fp.close()
+        if (line.startswith("ATOM  ") or line.startswith("TER")\
+            or (not clean and not line[:6]\
+                in ["DBREF ", "SEQADV", "MODRES", "HELIX ", "SHEET ", "SSBOND", "SITE  "])):
+            pdb_txt += line+'\n'
+    f_in.close()
 
-    PDBtxt_reindex = reindex_pdb_by_index(startindex, PDBtxt)
-    return PDBtxt_reindex
+    pdb_txt_reindex = reindex_pdb_by_index(start_index, pdb_txt)
+    return pdb_txt_reindex
