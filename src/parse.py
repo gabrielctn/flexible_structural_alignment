@@ -84,3 +84,68 @@ def write_pdb_portion(structure, chain_id, start, end, filename):
         filename (str): the name of the file to save.
     """
     Dice.extract(structure, chain_id, start, end, filename)
+
+
+def reindex_pdb_by_index(startindex=1, PDBtxt=''):
+    '''
+    reindex residue number of PDB format text
+
+    options:
+        startindex - index of first residue
+        PDBtxt     - text of input PDB to be reindexed
+    '''
+    PDBtxt_reindex = ''
+    current_old_index = ''  # residue number in origin PDB
+    warn_chainID = ''  # warning about new chain ID
+
+    for line in PDBtxt.splitlines():
+        if len(line) < 27 or (not line.startswith("ATOM  ")
+                              and not line.startswith("HETATM") and not line.startswith("TER")):
+            PDBtxt_reindex += line+'\n'
+            continue
+        elif not line[16] in ['A', ' ']:  # alternative location identifier
+            continue
+        resSeq = line[22:27]  # residue sequence number
+        current_chainID = line[21]  # chain identifier
+
+        if not current_old_index:  # first residue encountered
+            current_old_index = resSeq  # residue number in origin PDB
+            current_new_index = int(startindex)
+            chainID = current_chainID
+            resSeq_new = str(current_new_index)
+            resSeq_new = ' '*(4-len(resSeq_new))+resSeq_new+' '
+        elif current_chainID != chainID:
+            if warn_chainID != current_chainID:
+                sys.stderr.write(
+                    "Warning! Discarding chain '%s'\n" % current_chainID)
+                warn_chainID = current_chainID
+            continue
+        elif resSeq != current_old_index:
+            current_new_index += 1
+            current_old_index = resSeq
+            resSeq_new = str(current_new_index)
+            resSeq_new = ' '*(4-len(resSeq_new))+resSeq_new+' '
+        PDBtxt_reindex += line[:16]+' '+line[17:22]+resSeq_new+line[27:]+'\n'
+    return PDBtxt_reindex
+
+
+def reindex_pdb(startindex, infile, clean=True):
+    '''parse PDB file "infile", reindex it according to start index or
+    sequence file "startindex", and return the text of renumbered PDB
+    '''
+    fp = open(infile, 'rU')
+    PDBtxt = ''
+    for line in fp.read().splitlines():
+        if line.startswith("END"):
+            if clean:
+                line = line.replace("ENDMDL", "END   ")
+            PDBtxt += line+'\n'
+            break
+        if line.startswith("ATOM  ") or line.startswith("TER") or (
+            clean == False and not line[:6] in ["DBREF ", "SEQADV", "MODRES",
+                                                "HELIX ", "SHEET ", "SSBOND", "SITE  "]):
+            PDBtxt += line+'\n'
+    fp.close()
+
+    PDBtxt_reindex = reindex_pdb_by_index(startindex, PDBtxt)
+    return PDBtxt_reindex

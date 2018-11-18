@@ -18,9 +18,10 @@
 from Bio.PDB.PDBParser import PDBParser
 from datetime import datetime
 from docopt import docopt
-from schema import Schema, And, Use, SchemaError
+from schema import Schema, Use, SchemaError
 import subprocess
-import os, re
+import os
+import re
 
 # Local modules
 import src.parse as parse
@@ -48,7 +49,6 @@ def clean_peeling_outputs():
     for file in os.listdir("."):
         if re.search(pattern, file):
             os.remove(os.path.join(".", file))
-
 
 
 if __name__ == "__main__":
@@ -81,18 +81,25 @@ if __name__ == "__main__":
 
     ### Parse PDB
     #############
-    structure = PDBParser(QUIET=True).get_structure(PDB_NAME_1, PDB_FILE_1)
+    # The PDB file is reindexed to fit the Protein Peeling program
+    reindexed_pdb = parse.reindex_pdb(1, PDB_FILE_1, True)
+    # Write the new reindexed PDB
+    NEW_PDB_NAME_1 = PDB_NAME_1 + "_new.pdb"
+    NEW_PDB_FILE_1 = "data/" + NEW_PDB_NAME_1
+    with open(NEW_PDB_FILE_1, "w") as f_out:
+        f_out.write(reindexed_pdb)
+    structure = PDBParser(QUIET=True).get_structure(NEW_PDB_NAME_1, NEW_PDB_FILE_1)
 
     ### Launch DSSP
     ###############
-    subprocess.Popen(["./bin/mkdssp", "-i", PDB_FILE_1, "-o", DSSP_FILE_1],
+    subprocess.Popen(["./bin/mkdssp", "-i", NEW_PDB_FILE_1, "-o", DSSP_FILE_1],
                      stdout=subprocess.PIPE).communicate()[0]
 
     ### Launch Peeling
     ##################
-    peeling_res = subprocess.Popen(["./bin/peeling11_4.1", "-pdb", PDB_FILE_1, "-dssp", DSSP_FILE_1,
+    peeling_res = subprocess.Popen(["./bin/peeling11_4.1", "-pdb", NEW_PDB_FILE_1, "-dssp", DSSP_FILE_1,
                                     "-R2", "98", "-ss2", "8", "-lspu", "20", "-mspu", "0", "-d0",
-                                    "6.0", "-delta", "1.5", "-oss", "0", "-p", "0", "-cp", "0",
+                                    "6.0", "-delta", "1.5", "-oss", "1", "-p", "0", "-cp", "0",
                                     "-npu", "16"],
                                    stdout=subprocess.PIPE).communicate()[0].decode("UTF-8").split("\n")
     clean_peeling_outputs()
