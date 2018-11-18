@@ -3,7 +3,7 @@
 
 """
     Usage:
-        ./fold_u PDB_FILE_1 PDB_FILE_2
+        ./flex PDB_FILE_1 PDB_FILE_2
 
     Arguments:
         PDB_FILE_1         Path to the first PDB file to align
