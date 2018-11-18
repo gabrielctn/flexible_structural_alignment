@@ -51,6 +51,27 @@ def parse_tm_align(tm_align_res):
     return (tm_score1, tm_score2, rmsd, aligned_len)
 
 
+def parse_tm_score(tm_score_res):
+    """
+    This function parses TMscore's terminal output.
+    It retrieves the TMscore normalized by the length of chain 2.
+
+    Args:
+        tm_score_res (list): Terminal's output of TMscore
+
+    Returns:
+        float: The TMscore
+    """
+    tm_score_regex = re.compile("^TM-score\\s*=\\s*(\\d+\\.\\d+).*$")
+    tm_score = None
+    for line in tm_score_res:
+        tm_score_found = re.search(tm_score_regex, line)
+        if tm_score_found:
+            tm_score = float(tm_score_found.group(1))
+    assert tm_score is not None, "Error: The TMscore could not be parsed from TMscore"
+    return tm_score
+
+
 def parse_protein_peeling(peeling_res):
     """
     This function parses the output of Protein Peeling software.
