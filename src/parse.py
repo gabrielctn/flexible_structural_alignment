@@ -46,6 +46,8 @@ def parse_tm_align(tm_align_res):
             rmsd = float(rmsd_found.group(1))
         if aligned_len_found:
             aligned_len = int(aligned_len_found.group(1))
+    if tm_score2 is None:
+        return -1
     return (tm_score1, tm_score2, rmsd, aligned_len)
 
 
