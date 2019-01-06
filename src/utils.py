@@ -4,7 +4,9 @@
 """
 
 # Third-party modules
-from pathlib import Path
+import os
+import shutil
+import re
 from schema import Schema, Use, SchemaError
 
 
@@ -24,7 +26,23 @@ def check_args(ARGUMENTS):
 
 def clean_files(dir, pattern):
     """
-    Removes files given a regex-like pattern.
+    Removes files given a regex-like pattern and a directory.
     """
-    for p in Path(dir).glob(pattern):
-        p.unlink()
+    for files in os.listdir(dir):
+        if re.search(pattern, files):
+            os.remove(os.path.join(dir, files))
+
+
+def clean_directory(dir):
+    """
+        Delete a directory recursively.
+    """
+    shutil.rmtree(dir)
+
+
+def create_dir_safely(dir):
+    """
+        Create the directory given in argument if not already created.
+    """
+    if not os.path.exists(dir):
+        os.makedirs(dir)
