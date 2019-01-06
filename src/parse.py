@@ -46,6 +46,8 @@ def parse_tm_align(tm_align_res):
             rmsd = float(rmsd_found.group(1))
         if aligned_len_found:
             aligned_len = int(aligned_len_found.group(1))
+    # In this case, a reason could be that the first protein from which the PU are generated
+    # is smaller than the protein 2 on which they are supposed to be aligned. We juste return -1.
     if tm_score2 is None:
         return -1
     return (tm_score1, tm_score2, rmsd, aligned_len)
@@ -80,7 +82,8 @@ def parse_protein_peeling(peeling_res):
         peeling_res (str): Terminal's output of Protein Peeling 3 software.
 
     Returns:
-        dictionary: Number of
+        dictionary: keys are => "Number of PUs for each peeling level"
+                                "Boundaries of each PU for a given peelling level"
     """
     peeling_dict = {"NB_PU": [], "PU_BOUNDS": []}
     res_line_regex = re.compile("^[^#].*$")
