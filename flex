@@ -54,7 +54,7 @@ def flex_align(PDB_FILE_1, PDB_FILE_2, PDB_NAME_1, PDB_NAME_2, DSSP_FILE_1, DSSP
     PEELING_PROCESS_RES = subprocess.Popen(["./bin/peeling11_4.1", "-pdb", NEW_PDB_FILE_1,
                                             "-dssp", DSSP_FILE_1, "-R2", "98", "-ss2", "8",
                                             "-lspu", "20", "-mspu", "0", "-d0", "6.0",
-                                            "-delta", "1.5", "-oss", "1", "-p", "0", "-cp", "0",
+                                            "-delta", "1.5", "-oss", "0", "-p", "0", "-cp", "0",
                                             "-npu", "16"], stdout=subprocess.PIPE).communicate()[0]
     PEELING_RES = PEELING_PROCESS_RES.decode("UTF-8").split("\n")
     # Clean workspace
@@ -68,7 +68,7 @@ def flex_align(PDB_FILE_1, PDB_FILE_2, PDB_NAME_1, PDB_NAME_2, DSSP_FILE_1, DSSP
     ### Flexible alignment
     ######################
     GENERAL_RESULTS = {}
-    aligned_max_pu = ""
+    GDT = {}
 
     # Create folders if they don't exist already
     utils.create_dir_safely("tmp")
@@ -101,7 +101,7 @@ def flex_align(PDB_FILE_1, PDB_FILE_2, PDB_NAME_1, PDB_NAME_2, DSSP_FILE_1, DSSP
                     .decode("UTF-8").split("\n")
                 TM_SCORE1, TM_SCORE2, RMSD, ALIGNED_LEN = parse.parse_tm_align(TM_ALIGN_RES)
                 # Keep the TM-score normalized by the longest protein (PROT 2)
-                SCORES[(peeling_level, start, end)] = TM_SCORE1
+                SCORES[(peeling_level, start, end)] = TM_SCORE2
 
             # Get the PU (peeling_level, start, end) associated to the best TM-Score
             key_max_value = max(SCORES.items(), key=operator.itemgetter(1))[0]
@@ -110,11 +110,11 @@ def flex_align(PDB_FILE_1, PDB_FILE_2, PDB_NAME_1, PDB_NAME_2, DSSP_FILE_1, DSSP
             best_pu_start = int(key_max_value[1])
             best_pu_end = int(key_max_value[2])
             best_pu_index = all_pu_ref.index((str(best_pu_start), str(best_pu_end)))
-
+            # Save the coordinates of the PU best ligned with TM-align
             pdb.save_best_aligned_pu(best_pu_peel_level, best_pu_index)
-
             # Remove the aligned PU from the static PDB before continuing to align other PUs
-            cropped_pdb = "tmp/"+PDB_NAME_2+"_cropped"+"_"+str(best_pu_peel_level+1)+"_pu_"+str(best_pu_index+1)+".pdb"
+            cropped_pdb = ("tmp/"+PDB_NAME_2+"_cropped"+"_"+str(best_pu_peel_level+1)+"_pu_"
+                           + str(best_pu_index+1)+".pdb")
             pdb.remove_aligned_pu_from_pdb(STRUCTURE_2, cropped_pdb, best_pu_start, best_pu_end)
             # Remove the best aligned PU to align the others afterwards
             all_pu.remove((str(best_pu_start), str(best_pu_end)))
@@ -122,14 +122,19 @@ def flex_align(PDB_FILE_1, PDB_FILE_2, PDB_NAME_1, PDB_NAME_2, DSSP_FILE_1, DSSP
         pdb.concatenate_best_aligned_pus(peeling_level, aligned_pu_pdb, all_pu_ref)
         # Launch TMscore between the protein 1 (aligned PUs) and protein 2
         TM_SCORE_RES = subprocess.Popen(["./bin/TMscore", aligned_pu_pdb, NEW_PDB_FILE_2],
-                                        stdout=subprocess.PIPE).communicate()[0].decode("UTF-8").split("\n")
+                                        stdout=subprocess.PIPE).communicate()[0].decode("UTF-8")\
+            .split("\n")
         TM_SCORE = parse.parse_tm_score(TM_SCORE_RES)
         # Save general results for further benchmarking
         GENERAL_RESULTS[PEELING_DICT["NB_PU"][peeling_level]] = TM_SCORE
-        print("{:>13}{:>16}{:>11}".format(peeling_level+1, PEELING_DICT["NB_PU"][peeling_level], TM_SCORE))
+        # Optimize alignement between PUs and the reference protein with gdt perl program
+        GDT_TM_SCORE = benchmarking.gdt(aligned_pu_pdb, NEW_PDB_FILE_2)
+        GDT[PEELING_DICT["NB_PU"][peeling_level]] = GDT_TM_SCORE
+        print("{:>13}{:>16}{:>11}{:>9}".format(peeling_level+1, PEELING_DICT["NB_PU"][peeling_level],
+                                                TM_SCORE, GDT_TM_SCORE))
         # Clean directory for next alignments
         utils.clean_files(dir="tmp/", pattern="^TM.*$")
-    return GENERAL_RESULTS
+    return(GENERAL_RESULTS, GDT)
 
 
 if __name__ == "__main__":
@@ -139,7 +144,7 @@ if __name__ == "__main__":
     ### Parse command line
     ######################
 
-    ARGUMENTS = docopt(__doc__, version='Protein Flexible Alignment Tool 1.0')
+    ARGUMENTS = docopt(__doc__, version='Flexible Structural Alignment Tool 1.0')
     # Check the types and ranges of the command line arguments parsed by docopt
     utils.check_args(ARGUMENTS)
 
@@ -159,22 +164,20 @@ if __name__ == "__main__":
     ### Launch Flexible alignement with Protein Peeling method
     ##########################################################
 
-    print("\n   Protein Flexible Alignment Tool 1.0\n\n")
-    print("\t     {} vs {}\n\t     {}\n".format(PDB_NAME_1, PDB_NAME_2, 12*"*"))
-    print("Peeling level\tNumber of PUs\tTM-Score")
+    print("\n\t Flexible Structural Alignment Tool 1.0\n\n")
+    print("\t\t     {} vs {}\n\t\t     {}\n".format(PDB_NAME_1, PDB_NAME_2, 12*"*"))
+    print("Peeling level\tNumber of PUs\tTM-Score    TM-score (gdt)")
     ### Launch flexible alignment: PROT1 vs PROT2
-    #############################################
-    PEELING_SCORES = flex_align(PDB_FILE_1, PDB_FILE_2, PDB_NAME_1, PDB_NAME_2, DSSP_FILE_1, DSSP_FILE_2)
+    (RESULTS_1, GDT_1) = flex_align(PDB_FILE_1, PDB_FILE_2, PDB_NAME_1, PDB_NAME_2, DSSP_FILE_1, DSSP_FILE_2)
 
     # Clean workspace
     utils.clean_files(dir="results", pattern="^((?!aligned).)*$")
     utils.clean_directory(dir="tmp")
 
-    print("\n\n\t     {} vs {}\n\t     {}\n".format(PDB_NAME_2, PDB_NAME_1, 12*"*"))
-    print("Peeling level\tNumber of PUs\tTM-Score")
+    print("\n\n\t\t     {} vs {}\n\t\t     {}\n".format(PDB_NAME_2, PDB_NAME_1, 12*"*"))
+    print("Peeling level\tNumber of PUs\tTM-Score    TM-score (gdt)")
     ### Launch flexible alignement: PROT2 vs PROT1
-    #############################################
-    PEELING_SCORES = flex_align(PDB_FILE_2, PDB_FILE_1, PDB_NAME_2, PDB_NAME_1, DSSP_FILE_2, DSSP_FILE_1)
+    (RESULTS_2, GDT_2) = flex_align(PDB_FILE_2, PDB_FILE_1, PDB_NAME_2, PDB_NAME_1, DSSP_FILE_2, DSSP_FILE_1)
 
     # Clean workspace
     utils.clean_files(dir="results", pattern="^((?!aligned).)*$")
@@ -182,7 +185,15 @@ if __name__ == "__main__":
 
     ### Launch TMalign for benchmarking
     ###################################
-    benchmarking.bench_tmalign(PDB_FILE_1, PDB_FILE_2)
+    TM_ALIGN_RES = benchmarking.bench_tmalign(PDB_FILE_1, PDB_FILE_2)
 
+    ### Launch parMATT for benchmarking
+    ###################################
+    PARMATT_SCORE = benchmarking.bench_parmatt(PDB_FILE_1, PDB_FILE_2, PDB_NAME_1, PDB_NAME_2)
+
+    # Benchmarking results (with and without gdt TM-scores)
+    benchmarking.plot_benchmark(RESULTS_1, RESULTS_2, TM_ALIGN_RES, PARMATT_SCORE, PDB_NAME_1, PDB_NAME_2, False)
+    benchmarking.plot_benchmark(GDT_1, GDT_2, PARMATT_SCORE, TM_ALIGN_RES, PDB_NAME_1, PDB_NAME_2, True)
+    print("\nResult plots are stored in results/")
     # Display runtime
     print("\nTotal runtime: {} seconds".format(str(datetime.now() - START_TIME)))
