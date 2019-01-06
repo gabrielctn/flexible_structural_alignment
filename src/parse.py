@@ -91,5 +91,7 @@ def parse_protein_peeling(peeling_res):
             res_line = res_line_found.group(0).split()
             peeling_dict["NB_PU"].append(int(res_line[4]))
             pu_bounds = [(x, y) for x, y in zip(res_line[5::2], res_line[6::2])]
+            # Sort the tuples in place
+            pu_bounds.sort(key=lambda tup: int(tup[0]))
             peeling_dict["PU_BOUNDS"].append(pu_bounds)
     return peeling_dict
