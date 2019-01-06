@@ -30,7 +30,6 @@ import src.utils as utils
 import src.benchmarking as benchmarking
 
 
-
 def flex_align(PDB_FILE_1, PDB_FILE_2, PDB_NAME_1, PDB_NAME_2, DSSP_FILE_1, DSSP_FILE_2):
     """
         Do the actual flexible alignment !
@@ -82,13 +81,12 @@ def flex_align(PDB_FILE_1, PDB_FILE_2, PDB_NAME_1, PDB_NAME_2, DSSP_FILE_1, DSSP
     # For every peeling level
     for peeling_level, all_pu in enumerate(PEELING_DICT["PU_BOUNDS"]):
         SCORES = {}
-        aligned_pu_pdb = ("results/" + PDB_NAME_1 + "_" + PDB_NAME_2 + "_aligned_PUs_level_" +
-                            str(peeling_level+1) + ".pdb")
+        aligned_pu_pdb = ("results/" + PDB_NAME_1 + "_" + PDB_NAME_2 + "_aligned_PUs_level_"
+                          + str(peeling_level+1) + ".pdb")
         cropped_pdb = NEW_PDB_FILE_2
         all_pu_ref = copy.deepcopy(all_pu)
-
+        # Write the PDBs of all the PUs of the actual peeling level
         pdb.write_pu_pdb(all_pu, PDB_NAME_1, peeling_level, STRUCTURE_1)
-
         # While there are still PUs to align for this peeling level
         while len(all_pu) >= 1:
             # Align each PU to the protein 2
@@ -126,11 +124,13 @@ def flex_align(PDB_FILE_1, PDB_FILE_2, PDB_NAME_1, PDB_NAME_2, DSSP_FILE_1, DSSP
         TM_SCORE_RES = subprocess.Popen(["./bin/TMscore", aligned_pu_pdb, NEW_PDB_FILE_2],
                                         stdout=subprocess.PIPE).communicate()[0].decode("UTF-8").split("\n")
         TM_SCORE = parse.parse_tm_score(TM_SCORE_RES)
+        # Save general results for further benchmarking
         GENERAL_RESULTS[PEELING_DICT["NB_PU"][peeling_level]] = TM_SCORE
         print("{:>13}{:>16}{:>11}".format(peeling_level+1, PEELING_DICT["NB_PU"][peeling_level], TM_SCORE))
         # Clean directory for next alignments
         utils.clean_files(dir="tmp/", pattern="^TM.*$")
     return GENERAL_RESULTS
+
 
 if __name__ == "__main__":
 
@@ -164,7 +164,7 @@ if __name__ == "__main__":
     print("Peeling level\tNumber of PUs\tTM-Score")
     ### Launch flexible alignment: PROT1 vs PROT2
     #############################################
-    flex_align(PDB_FILE_1, PDB_FILE_2, PDB_NAME_1, PDB_NAME_2, DSSP_FILE_1, DSSP_FILE_2)
+    PEELING_SCORES = flex_align(PDB_FILE_1, PDB_FILE_2, PDB_NAME_1, PDB_NAME_2, DSSP_FILE_1, DSSP_FILE_2)
 
     # Clean workspace
     utils.clean_files(dir="results", pattern="^((?!aligned).)*$")
@@ -174,7 +174,7 @@ if __name__ == "__main__":
     print("Peeling level\tNumber of PUs\tTM-Score")
     ### Launch flexible alignement: PROT2 vs PROT1
     #############################################
-    flex_align(PDB_FILE_2, PDB_FILE_1, PDB_NAME_2, PDB_NAME_1, DSSP_FILE_2, DSSP_FILE_1)
+    PEELING_SCORES = flex_align(PDB_FILE_2, PDB_FILE_1, PDB_NAME_2, PDB_NAME_1, DSSP_FILE_2, DSSP_FILE_1)
 
     # Clean workspace
     utils.clean_files(dir="results", pattern="^((?!aligned).)*$")
