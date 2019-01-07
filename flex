@@ -171,7 +171,7 @@ if __name__ == "__main__":
     (RESULTS_1, GDT_1) = flex_align(PDB_FILE_1, PDB_FILE_2, PDB_NAME_1, PDB_NAME_2, DSSP_FILE_1, DSSP_FILE_2)
 
     # Clean workspace
-    utils.clean_files(dir="results", pattern="^((?!aligned).)*$")
+    utils.clean_files(dir="results", pattern="^((?!aligned|.*png$).)*$")
     utils.clean_directory(dir="tmp")
 
     print("\n\n\t\t     {} vs {}\n\t\t     {}\n".format(PDB_NAME_2, PDB_NAME_1, 12*"*"))
