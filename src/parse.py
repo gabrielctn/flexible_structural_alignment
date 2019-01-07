@@ -49,7 +49,7 @@ def parse_tm_align(tm_align_res):
     # In this case, a reason could be that the first protein from which the PU are generated
     # is smaller than the protein 2 on which they are supposed to be aligned. We juste return -1.
     if tm_score2 is None:
-        return -1
+        return (-1,-1,-1,-1)
     return (tm_score1, tm_score2, rmsd, aligned_len)
 
 
