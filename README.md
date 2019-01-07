@@ -1,4 +1,4 @@
-# flexible_structural_alignment
+# Flexible Structural Alignment
 Flexible protein structural alignment with a hierarchical segmentation technique.
 
 One of the recurring problems in structural alignment is to compare structures
