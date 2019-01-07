@@ -1,0 +1,4 @@
+biopython == 1.72
+schema == 0.6.8
+docopt == 0.6.2
+matplotlib == 2.2.2
