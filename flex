@@ -193,7 +193,7 @@ if __name__ == "__main__":
 
     # Benchmarking results (with and without gdt TM-scores)
     benchmarking.plot_benchmark(RESULTS_1, RESULTS_2, TM_ALIGN_RES, PARMATT_SCORE, PDB_NAME_1, PDB_NAME_2, False)
-    benchmarking.plot_benchmark(GDT_1, GDT_2, PARMATT_SCORE, TM_ALIGN_RES, PDB_NAME_1, PDB_NAME_2, True)
+    benchmarking.plot_benchmark(GDT_1, GDT_2, TM_ALIGN_RES, PARMATT_SCORE, PDB_NAME_1, PDB_NAME_2, True)
     print("\nResult plots are stored in results/")
     # Display runtime
     print("\nTotal runtime: {} seconds".format(str(datetime.now() - START_TIME)))

@@ -107,7 +107,7 @@ def gdt(aligned_all_pu_pdb, ref_protein):
     return gdt_tm_score
 
 
-def plot_benchmark(results1, results2, parmatt_score, tm_align_score, prot1, prot2, gdt):
+def plot_benchmark(results1, results2, tm_align_score, parmatt_score, prot1, prot2, gdt):
     """
         Plot the number of PU according to the TM-score
 
@@ -121,12 +121,11 @@ def plot_benchmark(results1, results2, parmatt_score, tm_align_score, prot1, pro
     x1, y1 = zip(*dict_to_tuples_1)
     x2, y2 = zip(*dict_to_tuples_2)
     # TM-align alone results
-    x3 = x1 if len(x1) > len(x2) else x2
+    x3 = list(x1) if len(x1) > len(x2) else list(x2)
     y3 = [tm_align_score] * len(x3)
     # parMatt result
-    x4 = x1 if len(x1) > len(x2) else x2
-    y4 = [parmatt_score] * len(x3)
-
+    x4 = list(x1) if len(x1) > len(x2) else list(x2)
+    y4 = [parmatt_score] * len(x4)
     fig, ax = plt.subplots()
     if gdt:
         ax.plot(x1, y1, linestyle='solid', marker="*", c='magenta', lw=1, alpha=0.8, label=prot1+" vs "+prot2+" (Peeling + gdt)")
