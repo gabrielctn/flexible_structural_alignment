@@ -7,10 +7,8 @@
 import os
 import subprocess
 import re
-import operator
 import logging
 import matplotlib.pyplot as plt
-from multiprocessing import cpu_count
 
 # Local modules
 import src.parse as parse
@@ -106,44 +104,42 @@ def gdt(aligned_all_pu_pdb, ref_protein):
         score_found = re.search(regex_gdt, line)
         if score_found:
             gdt_tm_score = score_found.group(1)
-    return gdt_tm_score
+    return float(gdt_tm_score)
 
 
 def plot_benchmark(results1, results2, gdt_results1, gdt_results2, tm_align_score, parmatt_score, prot1, prot2):
     """
         Plot the peeling level and number of PUs according to the TM-score
     """
+    longest_res = list(results1.keys()) if len(list(results1.keys())) > len(list(results2.keys())) else list(results2.keys())
     # TM-align alone results
-    x1 = list(results1.keys()) if len(list(results1.keys())) > len(list(results2.keys())) else list(results2.keys())
-    y1 = [tm_align_score] * len(list(gdt_results1.keys()))
+    y1 = [tm_align_score] * len(longest_res)
     # parMatt result
-    x2 = list(results1.keys()) if len(list(results1.keys())) > len(list(results2.keys())) else list(results2.keys())
-    y2 = [parmatt_score] * len(list(gdt_results1.keys()))
+    y2 = [parmatt_score] * len(longest_res)
 
     fig, ax = plt.subplots()
-    ax.plot(x1, y1, c='green', label="TM-align (No Peeling)")
-    ax.plot(x2, y2, c='black', label="parMATT")
-    ax.scatter(list(results1.keys()), list(results1.values()), linestyle='solid', marker="*",
+    ax.plot(longest_res, y1, c='green', label="TM-align (No Peeling)")
+    ax.plot(longest_res, y2, c='black', label="parMATT")
+    ax.plot(list(results1.keys()), list(results1.values()), linestyle='solid', marker="*",
                c='red', lw=1, alpha=0.8, label=prot1+" vs "+prot2+" (Peeling)")
     ax.plot(list(results2.keys()), list(results2.values()), linestyle='solid', marker="*",
             c='blue', lw=1, alpha=0.8, label=prot2+" vs "+prot1+" (Peeling)")
-    ax.scatter(list(gdt_results1.keys()), list(gdt_results1.values()), linestyle='solid', marker="*",
+    ax.plot(list(gdt_results1.keys()), list(gdt_results1.values()), linestyle='solid', marker="*",
                c='magenta', lw=1, alpha=0.8, label=prot1+" vs "+prot2+" (Peeling + gdt)")
     ax.plot(list(gdt_results2.keys()), list(gdt_results2.values()), linestyle='solid', marker="*",
             c='cyan', lw=1, alpha=0.8, label=prot2+" vs "+prot1+" (Peeling + gdt)")
-    ax.invert_yaxis()
     ax.legend(loc='best', frameon=False)
     ax.set_title('Benchmark of flexible alignment between '+prot1+" and "+prot2)
     ax.set_ylabel('TM-score')
     ax.set_xlabel('Number of Protein Units')
-    plt.xticks(list(results1.keys()))
+    plt.xticks(longest_res)
 
     # Add a second axis below the first one to show the peeling level
     ax2 = ax.twiny()
     # Add some extra space for the second axis at the bottom
     fig.subplots_adjust(bottom=0.3)
-    ax2.set_xticks(list(results1.keys()))
-    ax2.set_xticklabels(range(1, len(list(results1.keys()))+1))
+    ax2.set_xticks(longest_res)
+    ax2.set_xticklabels(range(1, len(longest_res)+1))
     # Move twinned axis ticks and label from top to bottom
     ax2.xaxis.set_ticks_position('bottom')
     ax2.xaxis.set_label_position('bottom')
